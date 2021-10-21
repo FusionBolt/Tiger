@@ -4,7 +4,7 @@ type TPos = i64;
 enum TVar {
     SimpleVar(TSymbol),
     FieldVar(Box<TVar>, TSymbol),
-    SubscriptVar(Box<TVar>, Box<TExpr>)
+    SubscriptVar(Box<TVar>, Box<TExpr>),
 }
 
 enum OpType {
@@ -17,18 +17,12 @@ enum OpType {
     Lt,
     Le,
     Gt,
-    Ge
-}
-
-struct TOp {
-    op_type: OpType,
-    left: Box<TExpr>,
-    right: Box<TExpr>
+    Ge,
 }
 
 struct TField {
     name: TSymbol,
-    expr: Box<TExpr>
+    expr: Box<TExpr>,
 }
 
 struct TRecord {
@@ -36,20 +30,58 @@ struct TRecord {
     fields: Vec<TField>,
 }
 
+struct TFor {
+    var: TSymbol,
+    low: Box<TExpr>,
+    high: Box<TExpr>,
+    body: Box<TExpr>,
+    escape: bool,
+}
+
+struct TFunDec {
+    pos: TPos,
+    name: TSymbol,
+    params: Vec<TField>
+}
+
+struct TNameType {
+    name: TSymbol,
+    ty: TType
+}
+
+struct TVarDec {
+    var: TSymbol,
+    ty: TSymbol,
+    init: Box<TExpr>,
+    escape: bool
+}
+
+// todo: many pos
+enum Dec {
+    FunDec(Vec<TFunDec>),
+    VarDec(),
+    TypeDec(Vec<TNameType>),
+}
+
+enum TType {
+    NameType,
+    RecordType,
+    ArrayType,
+}
+
 enum TExpr {
-    Var,
+    Var(TVar),
     Int(i64),
     String(String),
-    Call(TSymbol, Vec<Box<TExpr>>),
-    Op(TOp),
-    Record(),
+    Call { fun: TSymbol, args: Vec<Box<TExpr>> },
+    Op { op_type: OpType, left: Box<TExpr>, right: Box<TExpr> },
+    Record(TRecord),
     Seq(Vec<Box<TExpr>>),
-    Assign(),
-    If,
-    While,
-    For,
-    Let(),
-    // type, size, init
-    Array(TSymbol, Box<TExpr>, Box<TExpr>),
-    Nil
+    Assign(TVar, Box<TExpr>),
+    If(Box<TExpr>, Box<TExpr>, Box<TExpr>),
+    While{cond: Box<TExpr>, body: Box<TExpr>},
+    For(TFor),
+    Let(Vec<Dec>, Box<TExpr>),
+    Array{item_type: TSymbol, size: Box<TExpr>, init: Box<TExpr>},
+    Nil,
 }
