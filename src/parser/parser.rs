@@ -5,12 +5,21 @@ use nom::bytes::complete::is_not;
 use nom::branch::alt;
 use nom::combinator::opt;
 use nom::multi::many0;
-use nom::character::complete::{alpha0, anychar};
+use nom::character::complete::{alpha0, anychar, space0};
+use crate::ir::expr::TDec;
 
 // todo:nested
 fn parse_comment(i: &str) -> IResult<&str, &str> {
     delimited(tag("/*"), is_not("*/"), tag("*/"))(i)
 }
+
+fn parse_type_decl(i: &str) -> IResult<&str, TDec> {
+    delimited(space0, tuple(tag("var")), space0)(i)
+}
+
+// fn parse_decs(i: &str) -> IResult<&str, Dec> {
+//
+// }
 
 fn parse_source(i: &str) {
     

@@ -1,13 +1,13 @@
 type TSymbol = String;
 type TPos = i64;
 
-enum TVar {
+pub enum TVar {
     SimpleVar(TSymbol),
     FieldVar(Box<TVar>, TSymbol),
     SubscriptVar(Box<TVar>, Box<TExpr>),
 }
 
-enum OpType {
+pub enum OpType {
     Plus,
     Minus,
     Times,
@@ -57,19 +57,19 @@ struct TVarDec {
 }
 
 // todo: many pos
-enum Dec {
+pub enum TDec {
     FunDec(Vec<TFunDec>),
     VarDec(),
     TypeDec(Vec<TNameType>),
 }
 
-enum TType {
+pub enum TType {
     NameType,
     RecordType,
     ArrayType,
 }
 
-enum TExpr {
+pub enum TExpr {
     Var(TVar),
     Int(i64),
     String(String),
@@ -81,7 +81,7 @@ enum TExpr {
     If(Box<TExpr>, Box<TExpr>, Box<TExpr>),
     While{cond: Box<TExpr>, body: Box<TExpr>},
     For(TFor),
-    Let(Vec<Dec>, Box<TExpr>),
+    Let(Vec<TDec>, Box<TExpr>),
     Array{item_type: TSymbol, size: Box<TExpr>, init: Box<TExpr>},
     Nil,
 }
