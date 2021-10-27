@@ -75,8 +75,8 @@ pub enum TDec {
 #[derive(Debug, PartialEq)]
 pub enum TType {
     NameType,
-    RecordType,
-    ArrayType,
+    RecordType(Vec<TField>),
+    ArrayType(TSymbol),
 }
 
 #[derive(Debug)]
