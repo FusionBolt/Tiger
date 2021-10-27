@@ -1,12 +1,14 @@
 type TSymbol = String;
 type TPos = i64;
 
+#[derive(Debug)]
 pub enum TVar {
     SimpleVar(TSymbol),
     FieldVar(Box<TVar>, TSymbol),
     SubscriptVar(Box<TVar>, Box<TExpr>),
 }
 
+#[derive(Debug)]
 pub enum OpType {
     Plus,
     Minus,
@@ -20,16 +22,19 @@ pub enum OpType {
     Ge,
 }
 
+#[derive(Debug)]
 struct TField {
     name: TSymbol,
     expr: Box<TExpr>,
 }
 
+#[derive(Debug)]
 struct TRecord {
     r_type: TSymbol,
     fields: Vec<TField>,
 }
 
+#[derive(Debug)]
 struct TFor {
     var: TSymbol,
     low: Box<TExpr>,
@@ -38,17 +43,20 @@ struct TFor {
     escape: bool,
 }
 
+#[derive(Debug)]
 struct TFunDec {
     pos: TPos,
     name: TSymbol,
     params: Vec<TField>
 }
 
-struct TNameType {
-    name: TSymbol,
-    ty: TType
+#[derive(Debug, PartialEq)]
+pub struct TNameType {
+    pub name: TSymbol,
+    pub ty: TType
 }
 
+#[derive(Debug)]
 struct TVarDec {
     var: TSymbol,
     ty: TSymbol,
@@ -57,18 +65,21 @@ struct TVarDec {
 }
 
 // todo: many pos
+#[derive(Debug, PartialEq)]
 pub enum TDec {
-    FunDec(Vec<TFunDec>),
     VarDec(),
+    // FunDec(Vec<TFunDec>),
     TypeDec(Vec<TNameType>),
 }
 
+#[derive(Debug, PartialEq)]
 pub enum TType {
     NameType,
     RecordType,
     ArrayType,
 }
 
+#[derive(Debug)]
 pub enum TExpr {
     Var(TVar),
     Int(i64),

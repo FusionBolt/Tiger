@@ -3,9 +3,9 @@ use nom::{IResult, bytes::complete::{tag, take_while_m_n}, combinator::map_res, 
 use nom::sequence::{delimited, preceded, pair};
 use nom::bytes::complete::is_not;
 use nom::branch::alt;
-use nom::combinator::opt;
+use nom::combinator::{opt, recognize};
 use nom::multi::many0;
-use nom::character::complete::{alpha0, anychar, space0};
+use nom::character::complete::{alpha0, alpha1, alphanumeric1, anychar, space0};
 use crate::ir::expr::TDec;
 
 // todo:nested
@@ -13,13 +13,7 @@ fn parse_comment(i: &str) -> IResult<&str, &str> {
     delimited(tag("/*"), is_not("*/"), tag("*/"))(i)
 }
 
-fn parse_type_decl(i: &str) -> IResult<&str, TDec> {
-    delimited(space0, tuple(tag("var")), space0)(i)
-}
 
-// fn parse_decs(i: &str) -> IResult<&str, Dec> {
-//
-// }
 
 fn parse_source(i: &str) {
     
