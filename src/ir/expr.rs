@@ -1,14 +1,14 @@
 type TSymbol = String;
 type TPos = i64;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TVar {
     SimpleVar(TSymbol),
     FieldVar(Box<TVar>, TSymbol),
     SubscriptVar(Box<TVar>, Box<TExpr>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum OpType {
     Plus,
     Minus,
@@ -22,19 +22,19 @@ pub enum OpType {
     Ge,
 }
 
-#[derive(Debug)]
-struct TField {
+#[derive(Debug, PartialEq)]
+pub struct TField {
     name: TSymbol,
-    expr: Box<TExpr>,
+    ty: Box<TExpr>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct TRecord {
     r_type: TSymbol,
     fields: Vec<TField>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct TFor {
     var: TSymbol,
     low: Box<TExpr>,
@@ -43,7 +43,7 @@ struct TFor {
     escape: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct TFunDec {
     pos: TPos,
     name: TSymbol,
@@ -56,7 +56,7 @@ pub struct TNameType {
     pub ty: TType
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct TVarDec {
     var: TSymbol,
     ty: TSymbol,
@@ -68,18 +68,19 @@ struct TVarDec {
 #[derive(Debug, PartialEq)]
 pub enum TDec {
     VarDec(),
-    // FunDec(Vec<TFunDec>),
+    FunDec(Vec<TFunDec>),
     TypeDec(Vec<TNameType>),
 }
 
 #[derive(Debug, PartialEq)]
 pub enum TType {
-    NameType,
-    RecordType(Vec<TField>),
+    NameType(TSymbol),
+    // name, ty
+    RecordType(Vec<(TSymbol, TSymbol)>),
     ArrayType(TSymbol),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TExpr {
     Var(TVar),
     Int(i64),
