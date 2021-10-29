@@ -5,14 +5,13 @@ use nom::bytes::complete::is_not;
 use nom::branch::alt;
 use nom::combinator::{opt, recognize};
 use nom::multi::many0;
-use nom::character::complete::{alpha0, alpha1, alphanumeric1, anychar, space0};
+use nom::character::complete::{alpha0, alpha1, alphanumeric1, anychar, multispace0, space0};
 use crate::ir::expr::TDec;
 
 // todo:nested
 fn parse_comment(i: &str) -> IResult<&str, &str> {
-    delimited(tag("/*"), is_not("*/"), tag("*/"))(i)
+    preceded(multispace0, delimited(tag("/*"), is_not("*/"), tag("*/")))(i)
 }
-
 
 
 fn parse_source(i: &str) {

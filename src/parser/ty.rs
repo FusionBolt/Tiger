@@ -2,7 +2,7 @@ use nom::bytes::complete::tag;
 use nom::branch::alt;
 use nom::character::complete::space0;
 use nom::IResult;
-use nom::sequence::{delimited, tuple};
+use nom::sequence::{delimited, preceded, tuple};
 use crate::ir::expr::{TDec, TNameType, TType};
 use crate::parser::common::identifier;
 use nom::multi::{many0, many_m_n, separated_list0};
@@ -28,7 +28,7 @@ fn parse_type_fields(i: &str) -> IResult<&str, TType> {
 }
 
 fn parse_array_type(i: &str) -> IResult<&str, TType> {
-    let (i, (_, _, _, _, id)) = tuple((tag("array"), space0, tag("of"), space0, identifier))(i)?;
+    let (i, id) = preceded(tuple((tag("array"), space0, tag("of"), space0)), identifier)(i)?;
     Ok((i, TType::ArrayType(id.to_string())))
 }
 

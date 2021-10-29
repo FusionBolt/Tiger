@@ -2,7 +2,7 @@ use nom::bytes::complete::tag;
 use nom::branch::alt;
 use nom::character::complete::space0;
 use nom::IResult;
-use nom::sequence::{delimited, tuple};
+use nom::sequence::{delimited, preceded, tuple};
 use crate::ir::expr::{TDec, TNameType, TType};
 use crate::parser::common::identifier;
 use nom::multi::{many0, many_m_n, separated_list0};
@@ -17,7 +17,7 @@ fn parse_type_dec(i: &str) -> IResult<&str, TDec> {
 }
 
 fn parse_var_dec(i: &str) -> IResult<&str, TDec> {
-    let (i, (_, _, _)) = delimited(space0, tuple((tag("var"), space0, identifier)), space0)(i)?;
+    let (i, id) = delimited(space0, preceded(tuple((tag("var"), space0)), identifier), space0)(i)?;
     Ok((i, TDec::VarDec()))
 }
 
