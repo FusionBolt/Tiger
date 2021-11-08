@@ -1,13 +1,27 @@
+use nom_locate::LocatedSpan;
+
 type TSymbol = String;
 type TPos = i64;
 
-#[derive(Debug, PartialEq)]
-pub enum TVar {
-    SimpleVar(TSymbol),
-    FieldVar(Box<TVar>, TSymbol),
-    SubscriptVar(Box<TVar>, Box<TExpr>),
+pub struct Span {
+    offset: usize,
+    line: u32
 }
 
+impl Span {
+    pub fn from_located_span(span: LSpan) -> Span {
+        Span{offset:span.0.offset, line:span.0.line}
+    }
+}
+
+pub type LSpan<'a> = LocatedSpan<&'a str>;
+
+#[derive(Debug, PartialEq)]
+pub enum TVar {
+    SimpleVar(TSymbol, Span),
+    FieldVar(Box<TVar>, TSymbol, Span),
+    SubscriptVar(Box<TVar>, Box<TExpr>, Span),
+}
 #[derive(Debug, PartialEq)]
 pub enum OpType {
     Plus,
@@ -29,18 +43,13 @@ pub struct TField {
 }
 
 #[derive(Debug, PartialEq)]
-struct TRecord {
-    r_type: TSymbol,
-    fields: Vec<TField>,
-}
-
-#[derive(Debug, PartialEq)]
 struct TFor {
     var: TSymbol,
     low: Box<TExpr>,
     high: Box<TExpr>,
     body: Box<TExpr>,
     escape: bool,
+    pos: Span
 }
 
 #[derive(Debug, PartialEq)]
@@ -84,16 +93,16 @@ pub enum TType {
 pub enum TExpr {
     Var(TVar),
     Int(i64),
-    String(String),
-    Call { fun: TSymbol, args: Vec<Box<TExpr>> },
-    Op { op_type: OpType, left: Box<TExpr>, right: Box<TExpr> },
-    Record(TRecord),
-    Seq(Vec<Box<TExpr>>),
-    Assign(TVar, Box<TExpr>),
-    If(Box<TExpr>, Box<TExpr>, Box<TExpr>),
-    While{cond: Box<TExpr>, body: Box<TExpr>},
+    String(String, Span),
+    Call { fun: TSymbol, args: Vec<Box<TExpr>>, pos: Span },
+    Op { op_type: OpType, left: Box<TExpr>, right: Box<TExpr>, pos: Span },
+    Record { r_type: TSymbol, fields: Vec<TField>, pos: Span },
+    Seq(Vec<(Box<TExpr>, Span)>),
+    Assign { var: TVar, expr: Box<TExpr>, pos: Span },
+    If { cond: Box<TExpr>, if_expr: Box<TExpr>, else_expr: Box<TExpr>, pos: Span },
+    While{cond: Box<TExpr>, body: Box<TExpr>, pos: Span },
     For(TFor),
-    Let(Vec<TDec>, Box<TExpr>),
-    Array{item_type: TSymbol, size: Box<TExpr>, init: Box<TExpr>},
+    Let { decs: Vec<TDec>, body: Box<TExpr>, pos: Span },
+    Array {item_type: TSymbol, size: Box<TExpr>, init: Box<TExpr>, pos: Span },
     Nil,
 }

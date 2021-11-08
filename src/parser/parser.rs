@@ -5,26 +5,28 @@ use nom::bytes::complete::is_not;
 use nom::branch::alt;
 use nom::combinator::{opt, recognize};
 use nom::character::complete::{alpha0, alpha1, alphanumeric1, anychar, multispace0, space0};
-use crate::ir::expr::TDec;
+use crate::ir::expr::{TDec, LSpan};
 
 // todo:nested
-fn parse_comment(i: &str) -> IResult<&str, &str> {
-    preceded(multispace0, delimited(tag("/*"), is_not("*/"), tag("*/")))(i)
+fn parse_comment(i: LSpan) -> IResult<LSpan, &str> {
+    let (i, comment) = preceded(multispace0, delimited(tag("/*"), is_not("*/"), tag("*/")))(i)?;
+    Ok((i, comment))
 }
 
 
-fn parse_source(i: &str) {
+fn parse_source(i: LSpan) {
     
 }
 
 #[cfg(test)]
 mod tests {
     use crate::parser::parser::parse_comment;
+    use crate::ir::expr::LSpan;
 
     #[test]
     fn test_comment() {
-        assert_eq!(parse_comment("/*this*/"), Ok(("", "this")));
-        assert_eq!(parse_comment("/*this is comment*/"), Ok(("", "this is comment")));
-        assert_eq!(parse_comment("/*this is \r escape comment*/"), Ok(("", "this is \r escape comment")));
+        assert_eq!(parse_comment(LSpan::new("/*this*/")), Ok(("", "this")));
+        assert_eq!(parse_comment(LSpan::new("/*this is comment*/")), Ok(("", "this is comment")));
+        assert_eq!(parse_comment(LSpan::new("/*this is \r escape comment*/")), Ok(("", "this is \r escape comment")));
     }
 }

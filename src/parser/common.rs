@@ -6,42 +6,35 @@ use nom::IResult;
 use nom::multi::many0;
 use nom::sequence::pair;
 use nom_locate::{LocatedSpan, position};
+use crate::ir::expr::{Span, LSpan};
 
 // todo:not a keyword
-pub fn identifier(input: &str) -> IResult<&str, &str> {
-    recognize(
-        pair(
-            alt((alpha1, tag("_"))),
-            many0(alt((alphanumeric1, tag("_"))))
-        )
-    )(input)
-}
-
-#[derive(Debug)]
-pub struct Id<'a> {
-    id: &'a str,
-    pos: LocatedSpan<&'a str>
-}
-
-type Span<'a> = LocatedSpan<&'a str>;
-pub fn identifier_(i: Span) -> IResult<Span, Id> {
+pub fn identifier(i: LSpan) -> IResult<LSpan, &str> {
     let (s, id) = recognize(
         pair(
             alt((alpha1, tag("_"))),
             many0(alt((alphanumeric1, tag("_"))))
         )
-    )(i)?;
-    let (s, pos) = position(s)?;
-    Ok((s, Id{id: *s, pos }))
+    )(i);
+    Ok((s, id))
+    // let (s, id) = recognize(
+    //     pair(
+    //         alt((alpha1, tag("_"))),
+    //         many0(alt((alphanumeric1, tag("_"))))
+    //     )
+    // )(i)?;
+    // let (s, pos) = position(s)?;
+    // Ok((s, Id{ id: "", pos: Span::from_located_span(s) }))
 }
 
 // todo: test error id
 #[cfg(test)]
 mod tests {
-    use crate::parser::common::{identifier, identifier_, Span};
+    use crate::parser::common::{identifier, Span};
+    use crate::ir::expr::LSpan;
 
     fn assert_true_id(i: &str) {
-        assert_eq!(identifier(i), Ok(("", i)))
+        assert_eq!(identifier(LSpan::new(i)), Ok(("", i)))
     }
 
     #[test]
@@ -55,7 +48,7 @@ mod tests {
 
     #[test]
     fn test_id() {
-        let output = identifier_(Span::new("str something"));
+        let output = identifier(Span::new("str something"));
         println!("{:?}", output.unwrap());
         // assert_eq!(identifier_(Span::new("str")));
     }
