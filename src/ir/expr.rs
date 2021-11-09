@@ -11,7 +11,7 @@ pub struct Span {
 
 impl Span {
     pub fn from_located_span(span: LSpan) -> Span {
-        Span{offset:span.location_offset(), line:span.location_line()}
+        Span { offset:span.location_offset(), line:span.location_line() }
     }
 }
 

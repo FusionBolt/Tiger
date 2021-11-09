@@ -2,7 +2,7 @@ use nom::bytes::complete::tag;
 use nom::branch::alt;
 use nom::character::complete::{multispace0, multispace1};
 use nom::IResult;
-use nom::sequence::{delimited, preceded, tuple, separated_pair};
+use nom::sequence::{delimited, preceded, tuple, separated_pair, terminated};
 use crate::ir::expr::{TDec, TNameType, TType, LSpan};
 use crate::parser::common::identifier;
 use nom::multi::{many0, many_m_n, separated_list0};
@@ -13,6 +13,11 @@ fn parse_name_type(i: LSpan) -> IResult<LSpan, TType> {
     Ok((i, TType::NameType(id.to_string())))
 }
 
+// todo:this
+// fn parse_type_id(i: LSpan) -> IResult<LSpan, TType> {
+//     Ok((i, ))
+// }
+
 // type_fields -> null
 // type_fields -> id : type_id{, id : type_id}
 // todo:test if first is ,
@@ -21,10 +26,10 @@ fn parse_type_fields(i: LSpan) -> IResult<LSpan, TType> {
         tag(","),
         delimited(
             multispace0,
-            tuple((identifier, multispace0, tag(":"), multispace0, identifier)),
+            tuple((identifier, preceded(tuple((multispace0, tag(":"), multispace0)), identifier))),
             multispace0)
     )(i)?;
-    let type_fields = type_fields.into_iter().map(|(new_type_id, _, _, _, type_id)| {
+    let type_fields = type_fields.into_iter().map(|(new_type_id, type_id)| {
         (new_type_id.to_string(), type_id.to_string())
     }).collect();
     Ok((i, TType::RecordType(type_fields)))
