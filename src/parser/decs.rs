@@ -34,14 +34,24 @@ fn parse_decs(i: LSpan) -> IResult<LSpan, TDec> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ir::expr::{TDec, TNameType, TType};
+    use crate::ir::expr::{TDec, TNameType, TType, LSpan};
     use crate::parser::decs::parse_type_dec;
+
+    fn assert_type_dec(i: &str, o: TDec) {
+        match parse_type_dec(LSpan::new(i)) {
+            Ok((l, res)) => {
+                assert_eq!(res, o)
+            } Err(_) => {
+                assert!(false)
+            }
+        }
+    }
 
     #[test]
     fn test_parse_type_dec() {
-        assert_eq!(parse_type_dec("type a = int"), Ok(("", TDec::TypeDec(vec![TNameType {
+        assert_type_dec("type a = int", TDec::TypeDec(vec![TNameType {
             name: "a".to_string(),
             ty: TType::NameType("int".to_string()),
-        }]))));
+        }]))
     }
 }

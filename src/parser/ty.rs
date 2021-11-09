@@ -54,28 +54,57 @@ mod tests {
     use crate::ir::expr::TType::RecordType;
     use crate::parser::ty::{parse_name_type, parse_record_type, parse_array_type};
 
+    fn assert_name_type(i: &str) {
+        match parse_name_type(LSpan::new(i)) {
+            Ok((l, res)) => {
+                assert_eq!(res, TType::NameType(i.to_string()))
+            }
+            Err(_) => {
+                assert!(false)
+            }
+        }
+    }
     #[test]
     fn test_parse_name_type() {
-        assert_eq!(parse_name_type(LSpan::new("int")), Ok(("", TType::NameType("int".to_string()))));
-        assert_eq!(parse_name_type(LSpan::new("string")), Ok(("", TType::NameType("string".to_string()))));
+        assert_name_type("int");
+        assert_name_type("string");
     }
 
-    fn assert_record_type(i: LSpan, vec: &[(&str, &str)]) {
-        assert_eq!(parse_record_type(i), Ok(("", TType::RecordType(
-            vec.into_iter().map(|(s1, s2)| (s1.to_string(), s2.to_string())).collect()))))
+    // todo:replace with macro
+    fn assert_record_type(i: &str, vec: &[(&str, &str)]) {
+        match parse_record_type(LSpan::new(i)) {
+            Ok((l, res)) => {
+                assert_eq!(res, TType::RecordType(
+                    vec.into_iter().map(|(s1, s2)| (s1.to_string(), s2.to_string())).collect()
+                ))
+            }
+            Err(_) => {
+                assert!(false)
+            }
+        }
     }
 
     #[test]
     fn test_parse_record_type() {
-        assert_record_type(LSpan::new("{a:int,b:string}"), &vec![("a", "int"), ("b", "string")]);
-        assert_record_type(LSpan::new("{a : int, b : string}"), &vec![("a", "int"), ("b", "string")]);
+        assert_record_type("{a:int,b:string}", &vec![("a", "int"), ("b", "string")]);
+        assert_record_type("{a : int, b : string}", &vec![("a", "int"), ("b", "string")]);
         // todo:add false test
         // assert_record_type("{,a : int, b : string}", &vec![("a", "int"), ("b", "string")]);
     }
 
+    fn assert_array_type(i: &str, o: &str) {
+        match parse_array_type(LSpan::new(i)) {
+            Ok((l, res)) => {
+                assert_eq!(res, TType::ArrayType(o.to_string()))
+            }
+            Err(_) => {
+
+            }
+        }
+    }
     #[test]
     fn test_parse_array_type() {
-        assert_eq!(parse_array_type(LSpan::new("array of int")), Ok(("", TType::ArrayType("int".to_string()))));
-        assert_eq!(parse_array_type(LSpan::new("arrayof int")), Ok(("", TType::ArrayType("int".to_string()))));
+        assert_array_type("array of int", "int");
+        assert_array_type("arrayof int", "int");
     }
 }

@@ -15,8 +15,8 @@ pub fn identifier(i: LSpan) -> IResult<LSpan, &str> {
             alt((alpha1, tag("_"))),
             many0(alt((alphanumeric1, tag("_"))))
         )
-    )(i);
-    Ok((s, id))
+    )(i)?;
+    Ok((s, id.fragment()))
     // let (s, id) = recognize(
     //     pair(
     //         alt((alpha1, tag("_"))),
@@ -34,7 +34,13 @@ mod tests {
     use crate::ir::expr::LSpan;
 
     fn assert_true_id(i: &str) {
-        assert_eq!(identifier(LSpan::new(i)), Ok(("", i)))
+        match identifier(LSpan::new(i)) {
+            Ok((l, s)) => {
+                assert_eq!(s, i)
+            } Err(_) => {
+                assert!(false)
+            }
+        }
     }
 
     #[test]
@@ -44,12 +50,5 @@ mod tests {
         assert_true_id("name_123");
         assert_true_id("name_123_");
         assert_true_id("_name_123_");
-    }
-
-    #[test]
-    fn test_id() {
-        let output = identifier(Span::new("str something"));
-        println!("{:?}", output.unwrap());
-        // assert_eq!(identifier_(Span::new("str")));
     }
 }

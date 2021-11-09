@@ -3,6 +3,7 @@ use nom_locate::LocatedSpan;
 type TSymbol = String;
 type TPos = i64;
 
+#[derive(Debug, PartialEq)]
 pub struct Span {
     offset: usize,
     line: u32
@@ -10,7 +11,7 @@ pub struct Span {
 
 impl Span {
     pub fn from_located_span(span: LSpan) -> Span {
-        Span{offset:span.0.offset, line:span.0.line}
+        Span{offset:span.location_offset(), line:span.location_line()}
     }
 }
 
