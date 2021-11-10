@@ -4,3 +4,4 @@ mod common;
 mod ty;
 mod var;
 mod expr;
+mod fun;

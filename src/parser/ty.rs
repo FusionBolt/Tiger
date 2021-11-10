@@ -3,7 +3,7 @@ use nom::branch::alt;
 use nom::character::complete::{multispace0, multispace1};
 use nom::IResult;
 use nom::sequence::{delimited, preceded, tuple, separated_pair, terminated};
-use crate::ir::expr::{TDec, TNameType, TType, LSpan, TSymbol, TField, Span};
+use crate::ir::expr::{TDec, TNameType, TType, LSpan, TSymbol, TField, Span, get_position};
 use crate::parser::common::identifier;
 use nom::multi::{many0, many_m_n, separated_list0};
 use nom::error::context;
@@ -30,9 +30,9 @@ pub fn parse_type_fields(i: LSpan) -> IResult<LSpan, Vec<TField>> {
             tuple((identifier, preceded(tuple((multispace0, tag(":"), multispace0)), identifier))),
             multispace0)
     )(i)?;
-    let (i, pos) = position(i)?;
+    let (i, pos) = get_position(i)?;
     let type_fields = type_fields.into_iter().map(|(new_type_id, type_id)| {
-        TField{name: new_type_id.to_string(), ty: type_id.to_string(), pos: Span::from_located_span(pos)}
+        TField { name: new_type_id.to_string(), ty: type_id.to_string(), pos: pos.clone() }
     }).collect();
     Ok((i, type_fields))
 }

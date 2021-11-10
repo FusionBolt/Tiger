@@ -1,8 +1,10 @@
-use nom_locate::LocatedSpan;
+use nom::error::ParseError;
+use nom::{InputIter, InputTake, IResult};
+use nom_locate::{LocatedSpan, position};
 
 pub type TSymbol = String;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Span {
     offset: usize,
     line: u32
@@ -15,6 +17,13 @@ impl Span {
 }
 
 pub type LSpan<'a> = LocatedSpan<&'a str>;
+
+pub fn get_position<'a, E>(i: LSpan<'a>) -> IResult<LSpan<'a>, Span, E>
+    where
+        E: ParseError<LSpan<'a>> {
+    let (i, pos) = position(i)?;
+    Ok((i, Span::from_located_span(pos)))
+}
 
 #[derive(Debug, PartialEq)]
 pub enum TVar {

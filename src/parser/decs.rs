@@ -9,6 +9,8 @@ use nom::multi::{many0, many_m_n, separated_list0};
 use crate::parser::ty::parse_type;
 use nom::error::context;
 use crate::ir::expr::{LSpan, Span};
+use crate::parser::fun::parse_fun;
+use crate::parser::var::{parse_var};
 
 
 // tydec -> type type-id = ty
@@ -19,13 +21,12 @@ fn parse_type_dec(i: LSpan) -> IResult<LSpan, TDec> {
 }
 
 fn parse_var_dec(i: LSpan) -> IResult<LSpan, TDec> {
-    let (i, id) = delimited(multispace0, preceded(tuple((tag("var"), multispace0)), identifier), multispace0)(i)?;
-    Ok((i, TDec::VarDec()))
+    parse_var(i)
 }
 
 fn parse_fun_dec(i: LSpan) -> IResult<LSpan, TDec> {
+    parse_fun(i)
     //let (i, (_, _, _)) = delimited(multispace0, tuple((tag("function"), multispace0, identifier)), multispace0)(i)?;
-    Ok((i, TDec::VarDec()))
 }
 
 fn parse_decs(i: LSpan) -> IResult<LSpan, TDec> {
