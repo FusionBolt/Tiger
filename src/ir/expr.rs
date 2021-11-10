@@ -1,7 +1,6 @@
 use nom_locate::LocatedSpan;
 
-type TSymbol = String;
-type TPos = i64;
+pub type TSymbol = String;
 
 #[derive(Debug, PartialEq)]
 pub struct Span {
@@ -38,12 +37,6 @@ pub enum OpType {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct TField {
-    name: TSymbol,
-    ty: Box<TExpr>,
-}
-
-#[derive(Debug, PartialEq)]
 struct TFor {
     var: TSymbol,
     low: Box<TExpr>,
@@ -54,10 +47,10 @@ struct TFor {
 }
 
 #[derive(Debug, PartialEq)]
-struct TFunDec {
-    pos: TPos,
-    name: TSymbol,
-    params: Vec<TField>
+pub struct TField {
+    pub name: TSymbol,
+    pub ty: TSymbol,
+    pub pos: Span
 }
 
 #[derive(Debug, PartialEq)]
@@ -67,18 +60,27 @@ pub struct TNameType {
 }
 
 #[derive(Debug, PartialEq)]
-struct TVarDec {
-    var: TSymbol,
-    ty: TSymbol,
-    init: Box<TExpr>,
-    escape: bool
+pub struct TVarDec {
+    pub name: TSymbol,
+    pub ty: TSymbol,
+    pub init: Box<TExpr>,
+    pub escape: bool,
+    pub pos: Span
+}
+
+#[derive(Debug, PartialEq)]
+pub struct TFunDec {
+    pub name: TSymbol,
+    pub params: Vec<TField>,
+    pub body: Box<TExpr>,
+    pub pos: Span
 }
 
 // todo: many pos
 #[derive(Debug, PartialEq)]
 pub enum TDec {
-    VarDec(),
-    FunDec(Vec<TFunDec>),
+    VarDec(TVarDec),
+    FunDec(TFunDec),
     TypeDec(Vec<TNameType>),
 }
 
@@ -86,7 +88,7 @@ pub enum TDec {
 pub enum TType {
     NameType(TSymbol),
     // name, ty
-    RecordType(Vec<(TSymbol, TSymbol)>),
+    RecordType(Vec<TField>),
     ArrayType(TSymbol),
 }
 
