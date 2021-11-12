@@ -1,9 +1,10 @@
 use nom::bytes::complete::tag;
 use nom::branch::alt;
-use nom::character::complete::multispace0;
+use nom::character::complete::{multispace0, one_of};
 use nom::{IResult, Parser};
-use nom::multi::separated_list1;
-use nom::sequence::{delimited, preceded, tuple};
+use nom::combinator::opt;
+use nom::multi::{separated_list0, separated_list1};
+use nom::sequence::{delimited, preceded, separated_pair, tuple};
 use nom_locate::position;
 use crate::ir::expr::{get_position, LSpan, Span, TExpr, TVar};
 use crate::parser::common::identifier;
@@ -52,17 +53,63 @@ fn parse_no_value(i: LSpan) -> IResult<LSpan, TExpr> {
 }
 
 // todo: neg num
-fn parse_number(i: LSpan) -> IResult<LSpan, TExpr> {
-
-}
-
-fn parse_string(i: LSpan) -> IResult<LSpan, TExpr> {
-
-}
+// fn parse_number(i: LSpan) -> IResult<LSpan, TExpr> {
+//
+// }
+//
+// fn parse_string(i: LSpan) -> IResult<LSpan, TExpr> {
+//
+// }
 
 fn parse_call(i: LSpan) -> IResult<LSpan, TExpr> {
+    let parse_expr_list = separated_list0(
+        tag(","),
+        delimited(
+            multispace0,
+            parse_expr,
+            multispace0)
+    );
+    let (i, (id, expr_list)) = tuple(
+        (delimited(multispace0, identifier, multispace0),
+        delimited(tag("("), opt(parse_expr_list),tag(")")))
+    )(i)?;
+    let (i, pos) = get_position(i)?;
+    let expr_list = match expr_list {
+        Some(l) => {
+            l
+        }
+        None => {
+            vec![]
+        }
+    };
 
+    let args = expr_list.into_iter().map(|expr| Box::new(expr)).collect();
+    Ok((i, TExpr::Call { fun: id.to_string(), args, pos}))
 }
+
+// arithmetic operation, compare, bool
+fn parse_binary_expr(i: LSpan) -> IResult<LSpan, TExpr> {
+    let parse_binary_op = one_of("x-*/");
+    let (i, (lhs, op, rhs)) = tuple((
+        preceded(multispace0, parse_expr),
+        preceded(multispace0, parse_binary_op),
+        preceded(multispace0, parse_expr)))(i)?;
+    Ok((i, TExpr::Nil))
+}
+
+// todo: ( ) in expr
+fn parse_unary_expr(i: LSpan) -> IResult<LSpan, TExpr> {
+    let parse_unary_op = one_of("-~&|");
+    let (i, (op, item)) = tuple((
+        preceded(multispace0, parse_unary_op),
+        preceded(multispace0, parse_expr)))(i)?;
+    Ok((i, TExpr::Nil))
+}
+
+// typeid multispace0 { id = exp, id = exp}
+// fn parse_record_create(i: LSpan) -> IResult<LSpan, TExpr> {
+//     tuple((identifier,))
+// }
 
 // lvalue . id
 // fn parse_record_field_access(i: LSpan) -> IResult<LSpan, TExpr> {
@@ -82,7 +129,7 @@ fn parse_call(i: LSpan) -> IResult<LSpan, TExpr> {
 #[cfg(test)]
 mod tests {
     use crate::ir::expr::LSpan;
-    use crate::parser::expr::parse_nil;
+    use crate::parser::expr::{parse_call, parse_nil};
 
     fn assert_nil(i: &str) {
         match parse_nil(LSpan::new(i)) {
@@ -96,9 +143,15 @@ mod tests {
     }
 
     #[test]
-    fn test_nil() {
+    fn test_parse_nil() {
         assert_nil("nil");
         assert_nil(" nil");
         // todo: assert NIL is false
+    }
+
+    #[test]
+    fn test_parse_call() {
+        // todo:not test
+        parse_call(LSpan::new("a()"));
     }
 }

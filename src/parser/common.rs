@@ -1,10 +1,11 @@
 use nom::bytes::complete::tag;
 use nom::branch::alt;
-use nom::character::complete::{alpha1, alphanumeric1};
+use nom::character::complete::{alpha1, alphanumeric1, multispace0};
 use nom::combinator::recognize;
-use nom::IResult;
-use nom::multi::many0;
-use nom::sequence::pair;
+use nom::{AsChar, error, InputIter, InputLength, IResult, Parser};
+use nom::error::ParseError;
+use nom::multi::{many0, separated_list0};
+use nom::sequence::{delimited, pair, preceded, tuple};
 use nom_locate::{LocatedSpan, position};
 use crate::ir::expr::{Span, LSpan};
 
@@ -25,6 +26,26 @@ pub fn identifier(i: LSpan) -> IResult<LSpan, &str> {
     // )(i)?;
     // let (s, pos) = position(s)?;
     // Ok((s, Id{ id: "", pos: Span::from_located_span(s) }))
+}
+
+// todo:finish this and import a macro for test
+pub fn parse_separated_list0<I, O, O2, E, F, G>(
+    mut sep: G,
+    mut f: F,
+) -> impl FnMut(I) -> IResult<I, Vec<O>, E>
+    where
+        I: Clone + InputLength,
+        F: Parser<I, O, E>,
+        G: Parser<I, O2, E>,
+        E: ParseError<I>
+{
+    separated_list0(
+        sep,
+        delimited(
+            multispace0,
+            tuple((identifier, preceded(tuple((multispace0, tag(":"), multispace0)), identifier))),
+            multispace0)
+    )
 }
 
 // todo: test error id

@@ -22,6 +22,7 @@ fn parse_name_type(i: LSpan) -> IResult<LSpan, TType> {
 // type_fields -> null
 // type_fields -> id : type_id{, id : type_id}
 // todo:test if first is ,
+// todo:test fields is empty
 pub fn parse_type_fields(i: LSpan) -> IResult<LSpan, Vec<TField>> {
     let (i, type_fields) = separated_list0(
         tag(","),
