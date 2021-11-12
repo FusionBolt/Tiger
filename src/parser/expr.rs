@@ -1,13 +1,15 @@
-use nom::bytes::complete::tag;
+use nom::bytes::complete::{tag, take_while};
 use nom::branch::alt;
 use nom::character::complete::{multispace0, one_of};
 use nom::{IResult, Parser};
 use nom::combinator::opt;
-use nom::multi::{separated_list0, separated_list1};
+use nom::multi::{separated_list0, many1, many0, separated_list1};
 use nom::sequence::{delimited, preceded, separated_pair, tuple};
 use nom_locate::position;
 use crate::ir::expr::{get_position, LSpan, Span, TExpr, TVar};
 use crate::parser::common::identifier;
+use nom::combinator::{recognize, map, map_res};
+use nom::character::{is_digit, is_alphanumeric};
 
 pub fn parse_expr(i: LSpan) -> IResult<LSpan, TExpr> {
     Ok((i, TExpr::Nil))
@@ -53,13 +55,26 @@ fn parse_no_value(i: LSpan) -> IResult<LSpan, TExpr> {
 }
 
 // todo: neg num
-// fn parse_number(i: LSpan) -> IResult<LSpan, TExpr> {
-//
-// }
-//
-// fn parse_string(i: LSpan) -> IResult<LSpan, TExpr> {
-//
-// }
+fn parse_number(i: LSpan) -> IResult<LSpan, TExpr> {
+    let (i, num) = recognize(many1(one_of("1234567890")))(i)?;
+    let (i, pos) = get_position(i)?;
+    Ok((i, TExpr::Int(num.to_string().parse::<i64>().unwrap())))
+}
+
+fn from_hex(input: &str) -> Result<u8, std::num::ParseIntError> {
+    u8::from_str_radix(input, 10)
+}
+
+fn is_character(c: char) -> bool {
+    return is_alphanumeric(c as u8);
+}
+
+fn parse_string(i: LSpan) -> IResult<LSpan, TExpr> {
+    let parse_str = recognize(many0(one_of("asdfghjkk")));
+    let (i, str) = delimited(tag("\""), parse_str,tag("\""))(i)?;
+    let (i, pos) = get_position(i)?;
+    Ok((i, TExpr::String(str.to_string(), pos)))
+}
 
 fn parse_call(i: LSpan) -> IResult<LSpan, TExpr> {
     let parse_expr_list = separated_list0(
@@ -110,6 +125,9 @@ fn parse_unary_expr(i: LSpan) -> IResult<LSpan, TExpr> {
 // fn parse_record_create(i: LSpan) -> IResult<LSpan, TExpr> {
 //     tuple((identifier,))
 // }
+// fn parse_call(i: LSpan) -> IResult<LSpan, TExpr> {
+//
+// }
 
 // lvalue . id
 // fn parse_record_field_access(i: LSpan) -> IResult<LSpan, TExpr> {
@@ -128,8 +146,8 @@ fn parse_unary_expr(i: LSpan) -> IResult<LSpan, TExpr> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ir::expr::LSpan;
-    use crate::parser::expr::{parse_call, parse_nil};
+    use crate::ir::expr::{LSpan, TExpr};
+    use crate::parser::expr::{parse_nil, parse_number, parse_call};
 
     fn assert_nil(i: &str) {
         match parse_nil(LSpan::new(i)) {
@@ -153,5 +171,21 @@ mod tests {
     fn test_parse_call() {
         // todo:not test
         parse_call(LSpan::new("a()"));
+    }
+
+    fn assert_num(i: &str, num: i64) {
+        match parse_number(LSpan::new(i)) {
+            Ok((_, TExpr::Int(n))) => {
+                assert_eq!(n, num)
+            }
+            _ => {
+                assert!(false)
+            }
+        }
+    }
+
+    #[test]
+    fn test_num() {
+        assert_num("233", 233);
     }
 }
