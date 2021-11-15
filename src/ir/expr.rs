@@ -46,13 +46,13 @@ pub enum OpType {
 }
 
 #[derive(Debug, PartialEq)]
-struct TFor {
-    var: TSymbol,
-    low: Box<TExpr>,
-    high: Box<TExpr>,
-    body: Box<TExpr>,
-    escape: bool,
-    pos: Span
+pub struct TFor {
+    pub var: TSymbol,
+    pub low: Box<TExpr>,
+    pub high: Box<TExpr>,
+    pub body: Box<TExpr>,
+    pub escape: bool,
+    pub pos: Span
 }
 
 #[derive(Debug, PartialEq)]

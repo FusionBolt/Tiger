@@ -4,7 +4,7 @@ use nom::character::complete::{multispace0, multispace1};
 use nom::IResult;
 use nom::sequence::{delimited, preceded, tuple, separated_pair, terminated};
 use crate::ir::expr::{TDec, TNameType, TType, LSpan, TSymbol, TField, Span, get_position};
-use crate::parser::common::identifier;
+use crate::parser::common::{identifier, parse_separated_list0};
 use nom::multi::{many0, many_m_n, separated_list0};
 use nom::error::context;
 use nom_locate::position;
@@ -24,13 +24,8 @@ fn parse_name_type(i: LSpan) -> IResult<LSpan, TType> {
 // todo:test if first is ,
 // todo:test fields is empty
 pub fn parse_type_fields(i: LSpan) -> IResult<LSpan, Vec<TField>> {
-    let (i, type_fields) = separated_list0(
-        tag(","),
-        delimited(
-            multispace0,
-            tuple((identifier, preceded(tuple((multispace0, tag(":"), multispace0)), identifier))),
-            multispace0)
-    )(i)?;
+    let parse_set_field_id = tuple((identifier, preceded(tuple((multispace0, tag(":"), multispace0)), identifier)));
+    let (i, type_fields) = parse_separated_list0(tag(","), parse_set_field_id)(i)?;
     let (i, pos) = get_position(i)?;
     let type_fields = type_fields.into_iter().map(|(new_type_id, type_id)| {
         TField { name: new_type_id.to_string(), ty: type_id.to_string(), pos: pos.clone() }
@@ -55,6 +50,11 @@ fn parse_record_type(i: LSpan) -> IResult<LSpan, TType> {
 pub fn parse_type(i: LSpan) -> IResult<LSpan, TType> {
     context("parse_type",
             alt((parse_name_type, parse_record_type, parse_array_type)))(i)
+}
+
+// todo:more position need parse_type_id
+pub fn parse_type_id(i: LSpan) -> IResult<LSpan, &str> {
+    identifier(i)
 }
 
 #[cfg(test)]

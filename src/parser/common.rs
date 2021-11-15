@@ -14,7 +14,7 @@ pub fn identifier(i: LSpan) -> IResult<LSpan, &str> {
     let (s, id) = recognize(
         pair(
             alt((alpha1, tag("_"))),
-            many0(alt((alphanumeric1, tag("_"))))
+            many0(alt((alphanumeric1, tag("_")))),
         )
     )(i)?;
     Ok((s, id.fragment()))
@@ -28,25 +28,44 @@ pub fn identifier(i: LSpan) -> IResult<LSpan, &str> {
     // Ok((s, Id{ id: "", pos: Span::from_located_span(s) }))
 }
 
-// todo:finish this and import a macro for test
-pub fn parse_separated_list0<I, O, O2, E, F, G>(
-    mut sep: G,
-    mut f: F,
-) -> impl FnMut(I) -> IResult<I, Vec<O>, E>
+pub fn preceded_space0<'a, F: 'a, O, E: ParseError<LSpan<'a>>>(inner: F)
+                                                               -> impl FnMut(LSpan<'a>) -> IResult<LSpan<'a>, O, E>
     where
-        I: Clone + InputLength,
-        F: Parser<I, O, E>,
-        G: Parser<I, O2, E>,
-        E: ParseError<I>
+        F: FnMut(LSpan<'a>) -> IResult<LSpan<'a>, O, E>,
+{
+    preceded(
+        multispace0,
+        inner,
+    )
+}
+
+pub fn delimited_space0<'a, F: 'a, O, E: ParseError<LSpan<'a>>>(inner: F)
+                                                                -> impl FnMut(LSpan<'a>) -> IResult<LSpan<'a>, O, E>
+    where
+        F: FnMut(LSpan<'a>) -> IResult<LSpan<'a>, O, E>,
+{
+    delimited(
+        multispace0,
+        inner,
+        multispace0,
+    )
+}
+
+
+pub fn parse_separated_list0<'a, G: 'a, F: 'a, O1, O2, E: ParseError<LSpan<'a>>>(sep: G, inner: F)
+                                                                                 -> impl FnMut(LSpan<'a>) -> IResult<LSpan<'a>, Vec<O2>, E>
+    where
+        G: FnMut(LSpan<'a>) -> IResult<LSpan<'a>, O1, E>,
+        F: FnMut(LSpan<'a>) -> IResult<LSpan<'a>, O2, E>,
 {
     separated_list0(
         sep,
-        delimited(
-            multispace0,
-            tuple((identifier, preceded(tuple((multispace0, tag(":"), multispace0)), identifier))),
-            multispace0)
+        delimited_space0(inner),
     )
 }
+
+// // todo:finish this and import a macro for test
+
 
 // todo: test error id
 #[cfg(test)]
@@ -58,7 +77,8 @@ mod tests {
         match identifier(LSpan::new(i)) {
             Ok((l, s)) => {
                 assert_eq!(s, i)
-            } Err(_) => {
+            }
+            Err(_) => {
                 assert!(false)
             }
         }
