@@ -66,7 +66,6 @@ pub fn parse_separated_list0<'a, G: 'a, F: 'a, O1, O2, E: ParseError<LSpan<'a>>>
 
 // // todo:finish this and import a macro for test
 
-
 // todo: test error id
 #[cfg(test)]
 mod tests {

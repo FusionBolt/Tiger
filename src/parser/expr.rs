@@ -6,7 +6,7 @@ use nom::combinator::opt;
 use nom::multi::{separated_list0, many1, many0, separated_list1};
 use nom::sequence::{delimited, preceded, separated_pair, tuple};
 use nom_locate::position;
-use crate::ir::expr::{get_position, LSpan, Span, TExpr, TVar, TFor};
+use crate::ir::expr::{get_position, LSpan, Span, TExpr, TVar, TFor, OpType};
 use crate::parser::common::{identifier, delimited_space0, preceded_space0, parse_separated_list0};
 use nom::combinator::{recognize, map, map_res};
 use nom::character::{is_digit, is_alphanumeric};
@@ -15,7 +15,8 @@ use crate::ir::expr::TExpr::Var;
 use crate::ir::expr::TVar::SimpleVar;
 
 pub fn parse_expr(i: LSpan) -> IResult<LSpan, TExpr> {
-    Ok((i, TExpr::Nil))
+    alt((parse_identifier, parse_nil))(i)
+    // Ok((i, TExpr::Nil))
 }
 
 // fn parse_exp(i: LSpan) -> IResult<LSpan, TExpr> {
@@ -74,7 +75,8 @@ fn is_character(c: char) -> bool {
 }
 
 fn parse_string(i: LSpan) -> IResult<LSpan, TExpr> {
-    let parse_str = recognize(many0(one_of("asdfghjkk")));
+    // todo:refactor, many character
+    let parse_str = recognize(many0(one_of(" qwertyuiopasdfghjklzxcvbnm")));
     let (i, str) = delimited(tag("\""), parse_str,tag("\""))(i)?;
     let (i, pos) = get_position(i)?;
     Ok((i, TExpr::String(str.to_string(), pos)))
@@ -105,12 +107,19 @@ fn parse_call(i: LSpan) -> IResult<LSpan, TExpr> {
 
 // arithmetic operation, compare, bool
 fn parse_binary_expr(i: LSpan) -> IResult<LSpan, TExpr> {
-    let parse_binary_op = one_of("x-*/");
+    let parse_binary_op = one_of("+-*/");
     let (i, (lhs, op, rhs)) = tuple((
         preceded_space0(parse_expr),
         preceded_space0(parse_binary_op),
         preceded_space0(parse_expr)))(i)?;
-    Ok((i, TExpr::Nil))
+    let (i, pos) = get_position(i)?;
+    // todo:error!!
+    Ok((i, TExpr::Op {
+        op_type: OpType::Plus,
+        left: Box::new(lhs),
+        right: Box::new(rhs),
+        pos
+    }))
 }
 
 // todo: ( ) in expr
@@ -224,19 +233,20 @@ fn parse_for(i: LSpan) -> IResult<LSpan, TExpr> {
     })))
 }
 
-fn parse_break(i: LSpan) -> IResult<LSpan, TExpr> {
-    tag("break")?
-}
+// fn parse_break(i: LSpan) -> IResult<LSpan, TExpr> {
+//     tag("break")?
+// }
 
 // todo:refactor, after tag should space1
 // todo:replace tag with cut
-fn parse_let(i: LSpan) -> IResult<LSpan, TExpr> {
-    let (i, ((var, low_expr), high_expr, body)) = tuple((
-        preceded(tag("let"), delimited_space0(parse_for_update_stmt)),
-        preceded(tag("in"), delimited_space0(parse_expr)),
-        tag("end")
-    ))(i)?;
-}
+// fn parse_let(i: LSpan) -> IResult<LSpan, TExpr> {
+//     let (i, ((var, low_expr), high_expr, body)) = tuple((
+//         preceded(tag("let"), delimited_space0(parse_for_update_stmt)),
+//         preceded(tag("in"), delimited_space0(parse_expr)),
+//         tag("end")
+//     ))(i)?;
+// }
+
 // lvalue . id
 // fn parse_record_field_access(i: LSpan) -> IResult<LSpan, TExpr> {
 //     let (i, (lv, id)) = tuple((parse_lvalue, preceded(tuple((multispace0, tag("."), multispace0)),
@@ -254,8 +264,8 @@ fn parse_let(i: LSpan) -> IResult<LSpan, TExpr> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ir::expr::{LSpan, TExpr};
-    use crate::parser::expr::{parse_nil, parse_number, parse_call};
+    use crate::ir::expr::{LSpan, make_simple_var_expr, OpType, TExpr, TVar};
+    use crate::parser::expr::{parse_nil, parse_number, parse_call, parse_string, parse_binary_expr};
 
     fn assert_nil(i: &str) {
         match parse_nil(LSpan::new(i)) {
@@ -275,10 +285,20 @@ mod tests {
         // todo: assert NIL is false
     }
 
+    fn assert_call(i: &str, id: &str) {
+        match parse_call(LSpan::new(i)) {
+            Ok((_, TExpr::Call { fun, args, pos })) => {
+                assert_eq!(fun, id.to_string())
+            }
+            _ => {
+                assert!(false)
+            }
+        }
+    }
+
     #[test]
     fn test_parse_call() {
-        // todo:not test
-        parse_call(LSpan::new("a()"));
+        assert_call("foo()", "foo");
     }
 
     fn assert_num(i: &str, num: i64) {
@@ -295,5 +315,59 @@ mod tests {
     #[test]
     fn test_num() {
         assert_num("233", 233);
+    }
+
+    fn assert_string(i: &str, string: &str) {
+        match parse_string(LSpan::new(i)) {
+            Ok((_, TExpr::String(s, pos))) => {
+                assert_eq!(s, string)
+            }
+            def => {
+                assert!(false, "should:{} in fact:{:?}", string, def)
+            }
+        }
+    }
+
+    #[test]
+    fn test_string() {
+        assert_string("\"this is some string\"", "this is some string");
+    }
+
+    fn assert_binary_id(i: &str, op: OpType, left_v: &str, right_v: &str) {
+        let get_simple_var_name = |v: &Box<TExpr>| {
+            match v.clone() {
+                TExpr::Var(v) =>{
+                    match v {
+                        TVar::SimpleVar(name, pos) => {
+                            name.clone()
+                        }
+                        _ => {
+                            assert!(false, "should be simple var");
+                            "".to_string()
+                        }
+                    }
+                }
+                _ => {
+                    assert!(false, "should be var");
+                    "".to_string()
+                }
+            }
+        };
+        match parse_binary_expr(LSpan::new(i)) {
+            Ok((_, TExpr::Op{ op_type, left, right, pos })) => {
+                assert_eq!(op_type, op);
+                assert_eq!(get_simple_var_name(left), left_v);
+                assert_eq!(get_simple_var_name(right), right_v);
+            }
+            res => {
+                println!("{:?} {:?}", i, res);
+                assert!(false)
+            }
+        }
+    }
+
+    #[test]
+    fn test_binary() {
+        assert_binary_id("a + b", OpType::Plus, "a", "b");
     }
 }

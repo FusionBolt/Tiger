@@ -4,7 +4,7 @@ use nom_locate::{LocatedSpan, position};
 
 pub type TSymbol = String;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct Span {
     offset: usize,
     line: u32
@@ -31,6 +31,7 @@ pub enum TVar {
     FieldVar(Box<TVar>, TSymbol, Span),
     SubscriptVar(Box<TVar>, Box<TExpr>, Span),
 }
+
 #[derive(Debug, PartialEq)]
 pub enum OpType {
     Plus,
@@ -117,4 +118,8 @@ pub enum TExpr {
     Let { decs: Vec<TDec>, body: Box<TExpr>, pos: Span },
     Array {item_type: TSymbol, size: Box<TExpr>, init: Box<TExpr>, pos: Span },
     Nil,
+}
+
+pub fn make_simple_var_expr(i: &str) -> Box<TExpr> {
+    Box::from(TExpr::Var(TVar::SimpleVar(i.to_string(), Span::default())))
 }
