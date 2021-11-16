@@ -39,10 +39,19 @@ pub fn preceded_space0<'a, F: 'a, O, E: ParseError<LSpan<'a>>>(inner: F)
     )
 }
 
+// pub fn around_space0_tag<'a, F: 'a, O, E: ParseError<LSpan<'a>>>(inner: F)
+// pub fn around_space0_tag<'a, F: 'a, O, E: ParseError<LSpan<'a>>>(inner: F)
+//                                                                 -> impl FnMut(LSpan<'a>) -> IResult<LSpan<'a>, O, E>
+//     where
+//         F: FnMut(LSpan<'a>) -> IResult<LSpan<'a>, O, E>
+// {
+//     tuple((multispace0, inner, multispace0))
+// }
+
 pub fn delimited_space0<'a, F: 'a, O, E: ParseError<LSpan<'a>>>(inner: F)
                                                                 -> impl FnMut(LSpan<'a>) -> IResult<LSpan<'a>, O, E>
     where
-        F: FnMut(LSpan<'a>) -> IResult<LSpan<'a>, O, E>,
+        F: FnMut(LSpan<'a>) -> IResult<LSpan<'a>, O, E>
 {
     delimited(
         multispace0,

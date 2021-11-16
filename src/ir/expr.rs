@@ -33,7 +33,14 @@ pub enum TVar {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum OpType {
+pub enum UnaryOpCode {
+    Neg,
+    And,
+    Or,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum BinaryOpCode {
     Plus,
     Minus,
     Times,
@@ -108,7 +115,8 @@ pub enum TExpr {
     Int(i64),
     String(String, Span),
     Call { fun: TSymbol, args: Vec<Box<TExpr>>, pos: Span },
-    Op { op_type: OpType, left: Box<TExpr>, right: Box<TExpr>, pos: Span },
+    BinaryOp { op_type: BinaryOpCode, left: Box<TExpr>, right: Box<TExpr>, pos: Span },
+    UnaryOp { op_type: UnaryOpCode, value: Box<TExpr>, pos: Span },
     Record { r_type: TSymbol, fields: Vec<TField>, pos: Span },
     Seq(Vec<(Box<TExpr>, Span)>),
     Assign { var: TVar, expr: Box<TExpr>, pos: Span },
@@ -122,4 +130,34 @@ pub enum TExpr {
 
 pub fn make_simple_var_expr(i: &str) -> Box<TExpr> {
     Box::from(TExpr::Var(TVar::SimpleVar(i.to_string(), Span::default())))
+}
+
+pub fn get_simple_var_name(v: &TExpr) -> TSymbol {
+    match v {
+        TExpr::Var(v) =>{
+            match v {
+                TVar::SimpleVar(name, pos) => {
+                    name.clone()
+                }
+                _ => {
+                    "error:should be simple var".to_string()
+                }
+            }
+        }
+        _ => {
+            "error:should be var".to_string()
+        }
+    }
+}
+
+pub fn get_int(v: &TExpr) -> i64 {
+    match v {
+        TExpr::Int(i) =>{
+            i.clone()
+        }
+        _ => {
+            assert!(false, "error:should be int");
+            0
+        }
+    }
 }

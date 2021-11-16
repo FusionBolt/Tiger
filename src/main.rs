@@ -1,3 +1,5 @@
+#![feature(box_patterns)]
+
 mod parser;
 mod ir;
 
