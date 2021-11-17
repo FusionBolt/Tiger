@@ -121,7 +121,7 @@ pub enum TExpr {
     Seq(Vec<(Box<TExpr>, Span)>),
     Assign { var: TVar, expr: Box<TExpr>, pos: Span },
     If { cond: Box<TExpr>, if_expr: Box<TExpr>, else_expr: Box<TExpr>, pos: Span },
-    While{cond: Box<TExpr>, body: Box<TExpr>, pos: Span },
+    While { cond: Box<TExpr>, body: Box<TExpr>, pos: Span },
     For(TFor),
     Let { decs: Vec<TDec>, body: Box<TExpr>, pos: Span },
     Array {item_type: TSymbol, size: Box<TExpr>, init: Box<TExpr>, pos: Span },

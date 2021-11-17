@@ -29,8 +29,12 @@ fn parse_fun_dec(i: LSpan) -> IResult<LSpan, TDec> {
     //let (i, (_, _, _)) = delimited(multispace0, tuple((tag("function"), multispace0, identifier)), multispace0)(i)?;
 }
 
-fn parse_decs(i: LSpan) -> IResult<LSpan, TDec> {
-    context("parse_decs" ,alt((parse_type_dec, parse_var_dec, parse_fun_dec)))(i)
+pub fn parse_dec(i: LSpan) -> IResult<LSpan, TDec> {
+    context("parse_dec" ,alt((parse_type_dec, parse_var_dec, parse_fun_dec)))(i)
+}
+
+pub fn parse_decs(i: LSpan) -> IResult<LSpan, Vec<TDec>> {
+    many0(parse_dec)(i)
 }
 
 #[cfg(test)]
