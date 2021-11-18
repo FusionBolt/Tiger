@@ -128,6 +128,17 @@ pub enum TExpr {
     Nil,
 }
 
+pub struct TModule {
+    pub decs: Vec<TDec>,
+    pub exprs: Vec<Box<TExpr>>
+}
+
+pub enum TSourceBlock {
+    Dec(TDec),
+    Expr(Box<TExpr>),
+    Comment(String)
+}
+
 pub fn make_simple_var_expr(i: &str) -> Box<TExpr> {
     Box::from(TExpr::Var(TVar::SimpleVar(i.to_string(), Span::default())))
 }

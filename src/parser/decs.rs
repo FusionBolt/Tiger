@@ -3,7 +3,7 @@ use nom::branch::alt;
 use nom::character::complete::multispace0;
 use nom::IResult;
 use nom::sequence::{delimited, preceded, tuple};
-use crate::ir::expr::{TDec, TNameType, TType};
+use crate::ir::expr::{TDec, TNameType, TType, TSourceBlock};
 use crate::parser::common::identifier;
 use nom::multi::{many0, many_m_n, separated_list0};
 use crate::parser::ty::parse_type;
@@ -35,6 +35,11 @@ pub fn parse_dec(i: LSpan) -> IResult<LSpan, TDec> {
 
 pub fn parse_decs(i: LSpan) -> IResult<LSpan, Vec<TDec>> {
     many0(parse_dec)(i)
+}
+
+pub fn parse_block_dec(i: LSpan) -> IResult<LSpan, TSourceBlock> {
+    let (i, dec) = parse_dec(i)?;
+    Ok((i, TSourceBlock::Dec(dec)))
 }
 
 #[cfg(test)]

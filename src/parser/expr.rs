@@ -2,11 +2,11 @@ use nom::bytes::complete::{tag, take_while};
 use nom::branch::alt;
 use nom::character::complete::{multispace0, one_of};
 use nom::{IResult, Parser, Needed, Err};
-use nom::combinator::opt;
+use nom::combinator::{opt, cut};
 use nom::multi::{separated_list0, many1, many0, separated_list1};
 use nom::sequence::{delimited, preceded, separated_pair, tuple, terminated};
 use nom_locate::position;
-use crate::ir::expr::{get_position, LSpan, Span, TExpr, TVar, TFor, BinaryOpCode, UnaryOpCode};
+use crate::ir::expr::{get_position, LSpan, Span, TExpr, TVar, TFor, BinaryOpCode, UnaryOpCode, TSourceBlock};
 use crate::parser::common::{identifier, delimited_space0, preceded_space0, parse_separated_list0};
 use nom::combinator::{recognize, map, map_res};
 use nom::character::{is_digit, is_alphanumeric};
@@ -15,6 +15,11 @@ use crate::ir::expr::TExpr::Var;
 use crate::ir::expr::TVar::SimpleVar;
 use nom::error::{context, ErrorKind};
 use crate::parser::decs::parse_decs;
+
+pub fn parse_block_expr(i: LSpan) -> IResult<LSpan, TSourceBlock> {
+    let (i, expr) = parse_expr(i)?;
+    Ok((i, TSourceBlock::Expr(Box::new(expr))))
+}
 
 pub fn parse_expr(i: LSpan) -> IResult<LSpan, TExpr> {
     alt((parse_identifier, parse_nil, parse_number, parse_string))(i)
@@ -268,9 +273,10 @@ fn parse_for(i: LSpan) -> IResult<LSpan, TExpr> {
     })))
 }
 
-// fn parse_break(i: LSpan) -> IResult<LSpan, TExpr> {
-//     tag("break")?
-// }
+fn parse_break(i: LSpan) -> IResult<LSpan, TExpr> {
+    let (i, _) = tag("break")(i)?;
+    Ok((i, TExpr::Nil))
+}
 
 // todo:refactor, after tag should space1
 // todo:replace tag with cut

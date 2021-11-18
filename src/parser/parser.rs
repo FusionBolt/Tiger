@@ -5,30 +5,52 @@ use nom::bytes::complete::is_not;
 use nom::branch::alt;
 use nom::combinator::{opt, recognize};
 use nom::character::complete::{alpha0, alpha1, alphanumeric1, anychar, multispace0, space0};
-use crate::ir::expr::{TDec, LSpan};
+use crate::ir::expr::{TDec, LSpan, TModule, TSourceBlock, TExpr};
+use crate::parser::decs::{parse_dec, parse_block_dec};
+use crate::parser::expr::{parse_expr, parse_block_expr};
+use nom::multi::many0;
 
 // todo:nested
-fn parse_comment(i: LSpan) -> IResult<LSpan, &str> {
+fn parse_comment(i: LSpan) -> IResult<LSpan, TSourceBlock> {
     let (i, comment) = preceded(multispace0, delimited(tag("/*"), is_not("*/"), tag("*/")))(i)?;
-    Ok((i, comment.fragment()))
+    Ok((i, TSourceBlock::Comment(comment.fragment().to_string())))
 }
 
+fn parse_module(i: LSpan) -> IResult<LSpan, TModule> {
+    let (i, blocks) = many0(alt((parse_block_dec, parse_block_expr, parse_comment)))(i)?;
+    let mut decs: Vec<TDec> = vec![];
+    let mut exprs: Vec<Box<TExpr>> = vec![];
+    blocks.into_iter().for_each(|block|{
+       match block {
+           TSourceBlock::Dec(dec) => {
+                decs.push(dec)
+           }
+           TSourceBlock::Expr(expr) => {
+               exprs.push(expr)
+           }
+           TSourceBlock::Comment(_) => {
 
-fn parse_source(i: LSpan) {
-    
+           }
+       }
+    });
+    Ok((i, TModule { decs, exprs }))
+}
+
+fn parse_source(i: LSpan) -> IResult<LSpan, TModule> {
+    parse_module(i)
 }
 
 #[cfg(test)]
 mod tests {
     use crate::parser::parser::parse_comment;
-    use crate::ir::expr::LSpan;
+    use crate::ir::expr::{LSpan, TSourceBlock};
 
     fn assert_comment(i: &str, o: &str) {
         match parse_comment(LSpan::new(i)) {
-            Ok((l, res)) => {
+            Ok((l, TSourceBlock::Comment(res))) => {
                 assert_eq!(res, o)
             }
-            Err(_) => {
+            _ => {
                 assert!(false)
             }
         }
