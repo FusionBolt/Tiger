@@ -9,15 +9,14 @@ mod ir;
 mod driver;
 
 fn main() {
+    // todo:driver and args file position is bad
     let args = get_args();
     let options = CompilerOptions::new(args).unwrap_or_else(|err| {
-        println!("{}", err);
-        process::exit(-1);
+        panic!("{}", err);
     });
 
     let compiler = Compiler::new();
     if let Err(err) = compiler.compile(&options) {
-        println!("{}", err);
-        process::exit(-1);
+        panic!("{}", err);
     }
 }

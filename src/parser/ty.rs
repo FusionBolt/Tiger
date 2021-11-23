@@ -49,7 +49,7 @@ fn parse_record_type(i: LSpan) -> IResult<LSpan, TType> {
 // todo:test context
 pub fn parse_type(i: LSpan) -> IResult<LSpan, TType> {
     context("parse_type",
-            alt((parse_name_type, parse_record_type, parse_array_type)))(i)
+            alt((parse_record_type, parse_array_type, parse_name_type)))(i)
 }
 
 // todo:more position need parse_type_id

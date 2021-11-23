@@ -17,7 +17,7 @@ fn parse_comment(i: LSpan) -> IResult<LSpan, TSourceBlock> {
 }
 
 fn parse_module(i: LSpan) -> IResult<LSpan, TModule> {
-    let (i, blocks) = many0(alt((parse_block_dec, parse_block_expr, parse_comment)))(i)?;
+    let (i, blocks) = many0(alt((parse_comment, parse_block_dec, parse_block_expr)))(i)?;
     let mut decs: Vec<TDec> = vec![];
     let mut exprs: Vec<Box<TExpr>> = vec![];
     blocks.into_iter().for_each(|block|{
@@ -36,8 +36,10 @@ fn parse_module(i: LSpan) -> IResult<LSpan, TModule> {
     Ok((i, TModule { decs, exprs }))
 }
 
-fn parse_source(i: LSpan) -> IResult<LSpan, TModule> {
-    parse_module(i)
+pub fn parse_source(i: &str) -> Result<TModule, String> {
+    parse_module(LSpan::new(i))
+        .or_else(|e| Err(format!("{:#?}", e)))
+        .and_then(|(_, module)| Ok(module))
 }
 
 #[cfg(test)]

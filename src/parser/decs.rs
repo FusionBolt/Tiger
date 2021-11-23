@@ -2,9 +2,9 @@ use nom::bytes::complete::tag;
 use nom::branch::alt;
 use nom::character::complete::multispace0;
 use nom::IResult;
-use nom::sequence::{delimited, preceded, tuple};
+use nom::sequence::{delimited, preceded, tuple, terminated};
 use crate::ir::expr::{TDec, TNameType, TType, TSourceBlock};
-use crate::parser::common::identifier;
+use crate::parser::common::{identifier, preceded_space0, delimited_space0};
 use nom::multi::{many0, many_m_n, separated_list0};
 use crate::parser::ty::parse_type;
 use nom::error::context;
@@ -15,8 +15,8 @@ use crate::parser::var::{parse_var};
 
 // tydec -> type type-id = ty
 fn parse_type_dec(i: LSpan) -> IResult<LSpan, TDec> {
-    let (i, (_, _, type_id, _, _, _, type_info, _)) =
-        delimited(multispace0, tuple((tag("type"), multispace0, identifier, multispace0, tag("="), multispace0, parse_type, multispace0)), multispace0)(i)?;
+    let (i, (_, type_id, _, type_info, _)) =
+        terminated(tuple((tag("type"), preceded_space0(identifier), delimited_space0(tag("=")), parse_type, multispace0)), multispace0)(i)?;
     Ok((i, TDec::TypeDec(vec![TNameType { name: type_id.to_string(), ty: type_info }])))
 }
 
@@ -30,11 +30,16 @@ fn parse_fun_dec(i: LSpan) -> IResult<LSpan, TDec> {
 }
 
 pub fn parse_dec(i: LSpan) -> IResult<LSpan, TDec> {
-    context("parse_dec" ,alt((parse_type_dec, parse_var_dec, parse_fun_dec)))(i)
+    // type, var, function
+    println!("start dec");
+    context("parse_dec" ,preceded_space0(alt((parse_type_dec, parse_var_dec, parse_fun_dec))))(i)
 }
 
 pub fn parse_decs(i: LSpan) -> IResult<LSpan, Vec<TDec>> {
-    many0(parse_dec)(i)
+    many0(parse_dec)(i).map(|v| {
+        println!("decs end {:?}", v.0);
+        v
+    })
 }
 
 pub fn parse_block_dec(i: LSpan) -> IResult<LSpan, TSourceBlock> {

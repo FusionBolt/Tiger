@@ -18,14 +18,25 @@ use crate::parser::decs::parse_decs;
 
 pub fn parse_block_expr(i: LSpan) -> IResult<LSpan, TSourceBlock> {
     let (i, expr) = parse_expr(i)?;
+    println!("block expr end {:?}", i);
     Ok((i, TSourceBlock::Expr(Box::new(expr))))
 }
 
 pub fn parse_expr(i: LSpan) -> IResult<LSpan, TExpr> {
-    alt((parse_identifier, parse_nil, parse_number, parse_string))(i)
+    // let, if, while, for, break
+    delimited_space0(alt((parse_let, parse_if, parse_while, parse_for, parse_break,
+        // type{ id }, id [] of
+        parse_create_record_var, parse_create_array,
+         // [nil | num | "], id(expr...), id
+         parse_literal_expr, parse_call, parse_lvalue,
+        // expr, op
+         parse_binary_expr, parse_unary_expr)))(i)
     // Ok((i, TExpr::Nil))
 }
 
+fn parse_literal_expr(i: LSpan) -> IResult<LSpan, TExpr> {
+    alt((parse_nil, parse_number, parse_string))(i)
+}
 // fn parse_exp(i: LSpan) -> IResult<LSpan, TExpr> {
 //     alt((parse_lvalue, parse_nil))(i)
 // }
@@ -35,24 +46,27 @@ pub fn parse_expr(i: LSpan) -> IResult<LSpan, TExpr> {
 //        -> lvalue [ exp ]
 fn parse_lvalue(i: LSpan) -> IResult<LSpan, TExpr> {
     // todo:unimpl, remove parse_num
-    context("parse_lvalue", alt((parse_identifier, parse_record_field_access)))(i)
+    // todo:parse_lvalue -> parse_array_index(parse_lvalue)
+    // when is end, but not end
+    context("parse_lvalue", alt((parse_identifier, parse_array_index)))(i)
 }
 
 // lvalue . id
 fn parse_record_field_access(i: LSpan) -> IResult<LSpan, TExpr> {
+    let (i, (lv, id)) = tuple((parse_lvalue, preceded(tuple((multispace0, tag("."), multispace0)),
+                                  identifier)))(i)?;
+    todo!("return value");
     Ok((i, TExpr::Nil))
-    // let (i, (lv, id)) = tuple((parse_lvalue, preceded(tuple((multispace0, tag("."), multispace0)),
-    //                               identifier)))(i)?;
-    // Ok((i, ))
 }
 
-// fn parse_array_index(i: LSpan) -> IResult<LSpan, TExpr> {
-//     let (i (lv, id)) = tuple((parse_lvalue, delimited(
-//         tuple((multispace0, tag("["), multispace0)),
-//         identifier,
-//         tuple((multispace0, tag("]"), multispace0)))))(i)?;
-//
-// }
+fn parse_array_index(i: LSpan) -> IResult<LSpan, TExpr> {
+    let (i, (lv, id)) = tuple((parse_lvalue, delimited(
+        tuple((multispace0, tag("["), multispace0)),
+        parse_expr,
+        tuple((multispace0, tag("]"), multispace0)))))(i)?;
+    todo!("return value");
+    Ok((i, TExpr::Nil))
+}
 
 fn parse_identifier(i: LSpan) -> IResult<LSpan, TExpr> {
     let (i, id) = preceded_space0(identifier)(i)?;
@@ -71,8 +85,10 @@ fn parse_nil(i: LSpan) -> IResult<LSpan, TExpr> {
 
 // todo: get separated_list position
 fn parse_expr_sequence(i: LSpan) -> IResult<LSpan, TExpr> {
+    println!("parse_expr_sequence");
     let (i, exprs) = separated_list1(tag(";"), parse_expr)(i)?;
     let (i, pos) = get_position(i)?;
+    println!("parse_expr_sequence ok:{:?}", i);
     Ok((i, TExpr::Seq(exprs.into_iter().map(|expr| (Box::from(expr), pos.clone())).collect())))
 }
 
@@ -86,6 +102,7 @@ fn parse_no_value(i: LSpan) -> IResult<LSpan, TExpr> {
 fn parse_number(i: LSpan) -> IResult<LSpan, TExpr> {
     let (i, num) = recognize(many1(one_of("1234567890")))(i)?;
     let (i, pos) = get_position(i)?;
+    println!("parse number: {:?}, fragment: {:?}", num, i);
     Ok((i, TExpr::Int(num.to_string().parse::<i64>().unwrap())))
 }
 
@@ -182,7 +199,7 @@ fn parse_create_record_var(i: LSpan) -> IResult<LSpan, TExpr> {
 
 fn parse_create_array(i: LSpan) -> IResult<LSpan, TExpr> {
     let (i, (type_id, n, v)) = preceded_space0(tuple((parse_type_id,
-           opt(delimited_space0(parse_expr)),
+           opt(delimited_space0(delimited(tag("["), parse_expr, tag("]")))),
            preceded(delimited_space0(tag("of")), parse_expr))))(i)?;
     let (i, pos) = get_position(i)?;
     let size = match n {
@@ -283,8 +300,9 @@ fn parse_break(i: LSpan) -> IResult<LSpan, TExpr> {
 fn parse_let(i: LSpan) -> IResult<LSpan, TExpr> {
     let (i, (decs, body)) = preceded_space0(terminated(tuple((
         preceded(tag("let"), parse_decs),
-        preceded(tag("in"), parse_expr_sequence))),
-                                                           tag("end")))(i)?;
+        preceded_space0(preceded(tag("in"), parse_expr_sequence)))),
+                                                           preceded_space0(tag("end"))))(i)?;
+    println!("end let :{:?}", i);
     let (i, pos) = get_position(i)?;
     Ok((i, TExpr::Let {
         decs,

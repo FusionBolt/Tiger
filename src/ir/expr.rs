@@ -128,6 +128,7 @@ pub enum TExpr {
     Nil,
 }
 
+#[derive(Debug)]
 pub struct TModule {
     pub decs: Vec<TDec>,
     pub exprs: Vec<Box<TExpr>>
