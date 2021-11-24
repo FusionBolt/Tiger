@@ -9,6 +9,7 @@ use crate::ir::expr::{TDec, LSpan, TModule, TSourceBlock, TExpr};
 use crate::parser::decs::{parse_dec, parse_block_dec};
 use crate::parser::expr::{parse_expr, parse_block_expr};
 use nom::multi::many0;
+use nom::error::context;
 
 // todo:nested
 fn parse_comment(i: LSpan) -> IResult<LSpan, TSourceBlock> {
@@ -17,7 +18,9 @@ fn parse_comment(i: LSpan) -> IResult<LSpan, TSourceBlock> {
 }
 
 fn parse_module(i: LSpan) -> IResult<LSpan, TModule> {
-    let (i, blocks) = many0(alt((parse_comment, parse_block_dec, parse_block_expr)))(i)?;
+    let (i, blocks) = context("parse_module",
+                              // todo:process when end, this is nom bug or my bug?
+                              many0(alt((parse_comment, parse_block_dec, parse_block_expr))))(i)?;
     let mut decs: Vec<TDec> = vec![];
     let mut exprs: Vec<Box<TExpr>> = vec![];
     blocks.into_iter().for_each(|block|{
@@ -38,7 +41,7 @@ fn parse_module(i: LSpan) -> IResult<LSpan, TModule> {
 
 pub fn parse_source(i: &str) -> Result<TModule, String> {
     parse_module(LSpan::new(i))
-        .or_else(|e| Err(format!("{:#?}", e)))
+        .or_else(|e| Err(format!("parse_source error:{:#?}", e)))
         .and_then(|(_, module)| Ok(module))
 }
 

@@ -1,6 +1,6 @@
 use nom::bytes::complete::{tag, take_while};
 use nom::branch::alt;
-use nom::character::complete::{multispace0, one_of};
+use nom::character::complete::{multispace0, one_of, satisfy};
 use nom::{IResult, Parser, Needed, Err};
 use nom::combinator::{opt, cut};
 use nom::multi::{separated_list0, many1, many0, separated_list1};
@@ -45,10 +45,15 @@ fn parse_literal_expr(i: LSpan) -> IResult<LSpan, TExpr> {
 //        -> lvalue . id
 //        -> lvalue [ exp ]
 fn parse_lvalue(i: LSpan) -> IResult<LSpan, TExpr> {
-    // todo:unimpl, remove parse_num
-    // todo:parse_lvalue -> parse_array_index(parse_lvalue)
-    // when is end, but not end
-    context("parse_lvalue", alt((parse_identifier, parse_array_index)))(i)
+    let (new_i, id) = delimited_space0(parse_identifier)(i)?;
+    let cur_char = new_i.chars().nth(0).unwrap();
+    if cur_char == '[' {
+        parse_array_index(i)
+    } else if cur_char == '.' {
+        parse_record_field_access(i)
+    } else {
+        Ok((new_i, id))
+    }
 }
 
 // lvalue . id
@@ -60,11 +65,11 @@ fn parse_record_field_access(i: LSpan) -> IResult<LSpan, TExpr> {
 }
 
 fn parse_array_index(i: LSpan) -> IResult<LSpan, TExpr> {
+    todo!("return value");
     let (i, (lv, id)) = tuple((parse_lvalue, delimited(
         tuple((multispace0, tag("["), multispace0)),
         parse_expr,
         tuple((multispace0, tag("]"), multispace0)))))(i)?;
-    todo!("return value");
     Ok((i, TExpr::Nil))
 }
 
@@ -145,13 +150,17 @@ fn parse_call(i: LSpan) -> IResult<LSpan, TExpr> {
     Ok((i, TExpr::Call { fun: id.to_string(), args, pos}))
 }
 
+fn parse_op_item(i: LSpan) -> IResult<LSpan, TExpr> {
+    // todo: binary and unary
+    alt((parse_literal_expr, parse_call, parse_lvalue))(i)
+}
 // arithmetic operation, compare, bool
 fn parse_binary_expr(i: LSpan) -> IResult<LSpan, TExpr> {
     let parse_binary_op = one_of("+-*/");
     let (i, (lhs, op, rhs)) = tuple((
-        preceded_space0(parse_expr),
+        preceded_space0(parse_op_item),
         preceded_space0(parse_binary_op),
-        preceded_space0(parse_expr)))(i)?;
+        preceded_space0(parse_op_item)))(i)?;
     let (i, pos) = get_position(i)?;
     // todo:error!!
     Ok((i, TExpr::BinaryOp {
@@ -167,7 +176,7 @@ fn parse_unary_expr(i: LSpan) -> IResult<LSpan, TExpr> {
     let parse_unary_op = one_of("-&|");
     let (i, (op, item)) = tuple((
         preceded_space0(parse_unary_op),
-        preceded_space0(parse_expr)))(i)?;
+        preceded_space0(parse_op_item)))(i)?;
     let (i, pos) = get_position(i)?;
     Ok((i, TExpr::UnaryOp {
         op_type: UnaryOpCode::Neg,
@@ -315,7 +324,7 @@ fn parse_let(i: LSpan) -> IResult<LSpan, TExpr> {
 #[cfg(test)]
 mod tests {
     use crate::ir::expr::{LSpan, make_simple_var_expr, BinaryOpCode, TExpr, TVar, get_simple_var_name, UnaryOpCode, get_int, TFor};
-    use crate::parser::expr::{parse_nil, parse_number, parse_call, parse_string, parse_binary_expr, parse_unary_expr, parse_create_record_var, parse_create_array, parse_assign, parse_if, parse_while, parse_for, parse_let};
+    use crate::parser::expr::{parse_nil, parse_number, parse_call, parse_string, parse_binary_expr, parse_unary_expr, parse_create_record_var, parse_create_array, parse_assign, parse_if, parse_while, parse_for, parse_let, parse_expr};
     use crate::ir::expr::TExpr::UnaryOp;
 
     fn assert_nil(i: &str) {
@@ -552,5 +561,11 @@ mod tests {
     #[test]
     fn test_parse_let() {
         assert_for(" for foo := 1 to 8 do a", "foo", 1, 8, "a");
+    }
+
+    #[test]
+    fn test_parse_expr_ambiguity() {
+        // not stack overflow is pass
+        parse_expr(LSpan::new("a + b"));
     }
 }
