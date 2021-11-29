@@ -1,8 +1,8 @@
-use nom::bytes::complete::{tag, take_while};
+use nom::bytes::complete::{tag, take_while, is_not};
 use nom::branch::alt;
-use nom::character::complete::{multispace0, one_of, satisfy};
+use nom::character::complete::{multispace0, one_of, satisfy, char, alphanumeric1};
 use nom::{IResult, Parser, Needed, Err};
-use nom::combinator::{opt, cut};
+use nom::combinator::{opt, cut, not};
 use nom::multi::{separated_list0, many1, many0, separated_list1};
 use nom::sequence::{delimited, preceded, separated_pair, tuple, terminated};
 use nom_locate::position;
@@ -15,6 +15,7 @@ use crate::ir::expr::TExpr::Var;
 use crate::ir::expr::TVar::SimpleVar;
 use nom::error::{context, ErrorKind};
 use crate::parser::decs::parse_decs;
+use crate::parser::fun::parse_fun;
 
 pub fn parse_block_expr(i: LSpan) -> IResult<LSpan, TSourceBlock> {
     let (i, expr) = parse_expr(i)?;
@@ -22,16 +23,71 @@ pub fn parse_block_expr(i: LSpan) -> IResult<LSpan, TSourceBlock> {
     Ok((i, TSourceBlock::Expr(Box::new(expr))))
 }
 
+// todo:reduce this code copy
+fn parse_expr_begin_with_id(i: LSpan) -> IResult<LSpan, TExpr> {
+    let (new_i, id) = delimited_space0(parse_expr_identifier)(i)?;
+    let cur_char = match new_i.chars().nth(0){
+        Some(c) => c,
+        None => return Ok((new_i, id))
+    };
+    // todo: process }, ) not matched
+    if cur_char == '{' {
+        // id{ id }
+        return parse_create_record_var(i);
+    } else if cur_char == '[' {
+        let (s, _) = terminated(recognize(many1(not(tag("]")))), multispace0)(i)?;
+        // todo:return ] is not matched
+            // .or_else(|e|
+            //     Err(nom::Err::Error(nom::error::Error::new("] is not matched", nom::error::ErrorKind::Tag))))?;
+        let res = tag::<&str, LSpan, nom::error::Error<LSpan>>("of")(i);
+        match res {
+            Ok(_) => return parse_create_array(i),
+            _ => return parse_array_index(i)
+        }
+    } else if cur_char == '(' {
+        // id(expr...)
+        return parse_call(i)
+    }
+    Ok((new_i, id))
+}
+
+fn parse_term(i: LSpan) -> IResult<LSpan, TExpr> {
+    // record / array maybe start at term
+    // alt((parse_literal_expr, parse_call, parse_record_field_access, parse_array_index, parse_expr_identifier))(i)
+    alt((parse_literal_expr, parse_expr_begin_with_id))(i)
+}
+
+fn parse_op(i: LSpan) -> IResult<LSpan, BinaryOpCode> {
+    let (i, c) = alt((char('+'), char('-'), char('*'), char('/')))(i)?;
+    Ok((i, match c {
+        '+' => BinaryOpCode::Plus,
+        '-' => BinaryOpCode::Minus,
+        '*' => BinaryOpCode::Times,
+        '/' => BinaryOpCode::Divide,
+        _ => todo!("un support op code")
+    }))
+}
+
+fn parse_normal_expr(i: LSpan) -> IResult<LSpan, TExpr> {
+    // todo:unary?
+    let (i, (term, expr)) = preceded_space0(
+        tuple((parse_term,
+               many0(
+                   tuple((preceded_space0(parse_op), preceded_space0(parse_term)))))))(i)?;
+    let (i, pos) = get_position(i)?;
+    Ok((i, expr.into_iter().fold(term, |sum, (op, rhs)|{
+        TExpr::BinaryOp {
+            op_type: op,
+            left: Box::new(sum),
+            right: Box::new(rhs),
+            pos: pos.clone()
+        }
+    })))
+}
+
 pub fn parse_expr(i: LSpan) -> IResult<LSpan, TExpr> {
     // let, if, while, for, break
-    delimited_space0(alt((parse_let, parse_if, parse_while, parse_for, parse_break,
-        // type{ id }, id [] of
-        parse_create_record_var, parse_create_array,
-         // [nil | num | "], id(expr...), id
-         parse_literal_expr, parse_call, parse_lvalue,
-        // expr, op
-         parse_binary_expr, parse_unary_expr)))(i)
-    // Ok((i, TExpr::Nil))
+    delimited_space0(alt((parse_let, parse_if, parse_while, parse_for, parse_break, parse_normal_expr)))(i)
 }
 
 fn parse_literal_expr(i: LSpan) -> IResult<LSpan, TExpr> {
@@ -45,8 +101,11 @@ fn parse_literal_expr(i: LSpan) -> IResult<LSpan, TExpr> {
 //        -> lvalue . id
 //        -> lvalue [ exp ]
 fn parse_lvalue(i: LSpan) -> IResult<LSpan, TExpr> {
-    let (new_i, id) = delimited_space0(parse_identifier)(i)?;
-    let cur_char = new_i.chars().nth(0).unwrap();
+    let (new_i, id) = delimited_space0(parse_expr_identifier)(i)?;
+    let cur_char = match new_i.chars().nth(0){
+        Some(c) => c,
+        None => return Ok((new_i, id))
+    };
     if cur_char == '[' {
         parse_array_index(i)
     } else if cur_char == '.' {
@@ -56,6 +115,7 @@ fn parse_lvalue(i: LSpan) -> IResult<LSpan, TExpr> {
     }
 }
 
+// todo: a.b.c.d.e
 // lvalue . id
 fn parse_record_field_access(i: LSpan) -> IResult<LSpan, TExpr> {
     let (i, (lv, id)) = tuple((parse_lvalue, preceded(tuple((multispace0, tag("."), multispace0)),
@@ -64,16 +124,17 @@ fn parse_record_field_access(i: LSpan) -> IResult<LSpan, TExpr> {
     Ok((i, TExpr::Nil))
 }
 
+// todo: a[1][2][3]
 fn parse_array_index(i: LSpan) -> IResult<LSpan, TExpr> {
-    todo!("return value");
     let (i, (lv, id)) = tuple((parse_lvalue, delimited(
         tuple((multispace0, tag("["), multispace0)),
         parse_expr,
         tuple((multispace0, tag("]"), multispace0)))))(i)?;
+    // todo:return value
     Ok((i, TExpr::Nil))
 }
 
-fn parse_identifier(i: LSpan) -> IResult<LSpan, TExpr> {
+fn parse_expr_identifier(i: LSpan) -> IResult<LSpan, TExpr> {
     let (i, id) = preceded_space0(identifier)(i)?;
     let (i, pos) = get_position(i)?;
     Ok((i, TExpr::Var(TVar::SimpleVar(id.to_string(), pos))))
@@ -154,6 +215,8 @@ fn parse_op_item(i: LSpan) -> IResult<LSpan, TExpr> {
     // todo: binary and unary
     alt((parse_literal_expr, parse_call, parse_lvalue))(i)
 }
+
+
 // arithmetic operation, compare, bool
 fn parse_binary_expr(i: LSpan) -> IResult<LSpan, TExpr> {
     let parse_binary_op = one_of("+-*/");
@@ -324,7 +387,7 @@ fn parse_let(i: LSpan) -> IResult<LSpan, TExpr> {
 #[cfg(test)]
 mod tests {
     use crate::ir::expr::{LSpan, make_simple_var_expr, BinaryOpCode, TExpr, TVar, get_simple_var_name, UnaryOpCode, get_int, TFor};
-    use crate::parser::expr::{parse_nil, parse_number, parse_call, parse_string, parse_binary_expr, parse_unary_expr, parse_create_record_var, parse_create_array, parse_assign, parse_if, parse_while, parse_for, parse_let, parse_expr};
+    use crate::parser::expr::{parse_nil, parse_number, parse_call, parse_string, parse_binary_expr, parse_unary_expr, parse_create_record_var, parse_create_array, parse_assign, parse_if, parse_while, parse_for, parse_let, parse_expr, parse_record_field_access};
     use crate::ir::expr::TExpr::UnaryOp;
 
     fn assert_nil(i: &str) {
@@ -463,7 +526,7 @@ mod tests {
 
     #[test]
     fn test_parse_create_array() {
-        assert_create_array(" int 5 of 1", "int", 5, 1);
+        assert_create_array(" int [5] of 1", "int", 5, 1);
     }
 
     fn assert_assign_string(i: &str, l_var: &str, exp: &str) {
@@ -563,9 +626,55 @@ mod tests {
         assert_for(" for foo := 1 to 8 do a", "foo", 1, 8, "a");
     }
 
-    #[test]
-    fn test_parse_expr_ambiguity() {
-        // not stack overflow is pass
-        parse_expr(LSpan::new("a + b"));
+    mod ambiguity {
+        use crate::parser::expr::{parse_expr, parse_record_field_access, parse_array_index};
+        use crate::ir::expr::{LSpan, TExpr};
+
+        #[test]
+        fn test_parse_expr_ambiguity() {
+            // not stack overflow is pass
+            match parse_expr(LSpan::new("a + b")) {
+                Ok((i, TExpr::BinaryOp { .. })) => {
+
+                }
+                res => {
+                    println!("{:?}", res);
+                    assert!(false)
+                }
+            };
+            parse_expr(LSpan::new("123"));
+            parse_expr(LSpan::new("\"str\""));
+            parse_expr(LSpan::new("a()"));
+            parse_expr(LSpan::new("id"));
+        }
+
+        #[test]
+        fn test_parse_array_ambiguity() {
+            let res = parse_expr(LSpan::new("int [10] of 0"));
+            println!("{:?}", res);
+            let res = parse_expr(LSpan::new("a[10]"));
+            println!("{:?}", res);
+        }
+
+        #[test]
+        fn test_member() {
+            let res = parse_expr(LSpan::new("a.b"));
+            println!("{:?}", res);
+
+            // let res = parse_record_field_access(LSpan::new("a.b.c.d"));
+            // println!("{:?}", res);
+        }
+
+        #[test]
+        fn test_array_index() {
+            let res = parse_expr(LSpan::new("a[1][2][3]"));
+            println!("{:?}", res);
+        }
+
+        #[test]
+        fn test_nest_array_index_chain() {
+            let res = parse_expr(LSpan::new("a[b[2]]"));
+            println!("{:?}", res);
+        }
     }
 }

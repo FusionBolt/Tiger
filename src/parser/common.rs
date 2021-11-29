@@ -12,7 +12,7 @@ use crate::ir::expr::{Span, LSpan};
 // todo:not a keyword
 fn not_keyword(i: &LSpan) -> bool {
     // alt((is_not("var"), is_not("function"), is_not("array"), is_not("in"), is_not("let")))(i)
-    let keywords = vec!["var", "function", "array", "let", "in", "end"];
+    let keywords = vec!["var", "function", "array", "let", "in", "end", "nil"];
     !keywords.contains(i.fragment())
 }
 
