@@ -1,9 +1,9 @@
-use nom::bytes::complete::{tag, take_while, is_not};
+use nom::bytes::complete::{tag, take_while, is_not, take_till};
 use nom::branch::alt;
 use nom::character::complete::{multispace0, one_of, satisfy, char, alphanumeric1};
 use nom::{IResult, Parser, Needed, Err};
 use nom::combinator::{opt, cut, not};
-use nom::multi::{separated_list0, many1, many0, separated_list1};
+use nom::multi::{separated_list0, many1, many0, separated_list1, many_till};
 use nom::sequence::{delimited, preceded, separated_pair, tuple, terminated};
 use nom_locate::position;
 use crate::ir::expr::{get_position, LSpan, Span, TExpr, TVar, TFor, BinaryOpCode, UnaryOpCode, TSourceBlock};
@@ -35,11 +35,15 @@ fn parse_expr_begin_with_id(i: LSpan) -> IResult<LSpan, TExpr> {
         // id{ id }
         return parse_create_record_var(i);
     } else if cur_char == '[' {
-        let (s, _) = terminated(recognize(many1(not(tag("]")))), multispace0)(i)?;
+        // return parse_create_array(i)
+        let (array_right, _) = terminated(tuple((take_till(|x| x == ']'), tag("]"))), multispace0)(i)?;
         // todo:return ] is not matched
-            // .or_else(|e|
-            //     Err(nom::Err::Error(nom::error::Error::new("] is not matched", nom::error::ErrorKind::Tag))))?;
-        let res = tag::<&str, LSpan, nom::error::Error<LSpan>>("of")(i);
+        // .map(|(ls, _)| Ok((ls, TExpr::Nil)))
+        //     .unwrap_or(Err(nom::Err::Error(nom::error::Error::new("] is not matched", nom::error::ErrorKind::Tag))))
+        //     .expect("");
+        // .or_else(|e|
+        //     Err(nom::Err::Error(nom::error::Error::new("] is not matched", nom::error::ErrorKind::Tag))))?;
+        let res = tag::<&str, LSpan, nom::error::Error<LSpan>>("of")(array_right);
         match res {
             Ok(_) => return parse_create_array(i),
             _ => return parse_array_index(i)
@@ -47,6 +51,8 @@ fn parse_expr_begin_with_id(i: LSpan) -> IResult<LSpan, TExpr> {
     } else if cur_char == '(' {
         // id(expr...)
         return parse_call(i)
+    } else if cur_char == '.' {
+        return parse_record_field_access(i)
     }
     Ok((new_i, id))
 }
@@ -118,19 +124,30 @@ fn parse_lvalue(i: LSpan) -> IResult<LSpan, TExpr> {
 // todo: a.b.c.d.e
 // lvalue . id
 fn parse_record_field_access(i: LSpan) -> IResult<LSpan, TExpr> {
-    let (i, (lv, id)) = tuple((parse_lvalue, preceded(tuple((multispace0, tag("."), multispace0)),
-                                  identifier)))(i)?;
-    todo!("return value");
-    Ok((i, TExpr::Nil))
+    let (i, (lv, id)) = tuple((parse_expr_identifier, preceded(tuple((multispace0, tag("."), multispace0)),
+                                  alt((parse_call, parse_expr_identifier)))))(i)?;
+    match id {
+        TExpr::Call{ fun, mut args, pos } => {
+            args.insert(0, Box::from(lv));
+            Ok((i, TExpr::Call { fun, args, pos }))
+        }
+        TExpr::Var(v) => {
+            Ok((i, TExpr::Var(v)))
+        }
+        _ => {
+            // todo:myself error process
+            Err(nom::Err::Error(nom::error::Error::new(i, nom::error::ErrorKind::Tag)))
+        }
+    }
 }
 
 // todo: a[1][2][3]
 fn parse_array_index(i: LSpan) -> IResult<LSpan, TExpr> {
-    let (i, (lv, id)) = tuple((parse_lvalue, delimited(
+    let (i, (lv, id)) = tuple((parse_expr_identifier, delimited(
         tuple((multispace0, tag("["), multispace0)),
         parse_expr,
         tuple((multispace0, tag("]"), multispace0)))))(i)?;
-    // todo:return value
+    // todo:return value call array index
     Ok((i, TExpr::Nil))
 }
 
@@ -139,10 +156,6 @@ fn parse_expr_identifier(i: LSpan) -> IResult<LSpan, TExpr> {
     let (i, pos) = get_position(i)?;
     Ok((i, TExpr::Var(TVar::SimpleVar(id.to_string(), pos))))
 }
-
-// fn parse_no_value_expr(i: LSpan) -> IResult<LSpan, TExpr> {
-//
-// }
 
 fn parse_nil(i: LSpan) -> IResult<LSpan, TExpr> {
     let (i, _) = preceded_space0(tag("nil"))(i)?;
@@ -627,9 +640,19 @@ mod tests {
     }
 
     mod ambiguity {
+        use nom::IResult;
         use crate::parser::expr::{parse_expr, parse_record_field_access, parse_array_index};
         use crate::ir::expr::{LSpan, TExpr};
 
+        fn assert(res: IResult<LSpan, TExpr>) {
+            match res {
+                Ok(v) => println!("{:?}", v),
+                res => {
+                    println!("{:?}", res);
+                    assert!(false);
+                }
+            }
+        }
         #[test]
         fn test_parse_expr_ambiguity() {
             // not stack overflow is pass
@@ -642,39 +665,36 @@ mod tests {
                     assert!(false)
                 }
             };
-            parse_expr(LSpan::new("123"));
-            parse_expr(LSpan::new("\"str\""));
-            parse_expr(LSpan::new("a()"));
-            parse_expr(LSpan::new("id"));
+            assert(parse_expr(LSpan::new("123")));
+            assert(parse_expr(LSpan::new("\"str\"")));
+            assert(parse_expr(LSpan::new("a()")));
+            assert(parse_expr(LSpan::new("id")));
         }
 
+        // todo:array and member access should begin with expr, but now begin with id
         #[test]
         fn test_parse_array_ambiguity() {
-            let res = parse_expr(LSpan::new("int [10] of 0"));
-            println!("{:?}", res);
-            let res = parse_expr(LSpan::new("a[10]"));
-            println!("{:?}", res);
+            assert(parse_expr(LSpan::new("int [10] of 0")));
+            assert(parse_expr(LSpan::new("a[10]")));
         }
 
         #[test]
         fn test_member() {
-            let res = parse_expr(LSpan::new("a.b"));
-            println!("{:?}", res);
-
+            assert(parse_expr(LSpan::new("a.b")));
+            assert(parse_expr(LSpan::new("a.b()")));
             // let res = parse_record_field_access(LSpan::new("a.b.c.d"));
             // println!("{:?}", res);
         }
 
         #[test]
         fn test_array_index() {
-            let res = parse_expr(LSpan::new("a[1][2][3]"));
-            println!("{:?}", res);
+            assert(parse_expr(LSpan::new("a[1][2][3]")));
+            assert!(false)
         }
 
         #[test]
         fn test_nest_array_index_chain() {
-            let res = parse_expr(LSpan::new("a[b[2]]"));
-            println!("{:?}", res);
+            assert(parse_expr(LSpan::new("a[b[2]]")));
         }
     }
 }
