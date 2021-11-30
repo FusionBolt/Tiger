@@ -7,6 +7,7 @@ use crate::driver::get_args;
 mod parser;
 mod ir;
 mod driver;
+mod symbol_table;
 
 fn main() {
     // todo:driver and args file position is bad
